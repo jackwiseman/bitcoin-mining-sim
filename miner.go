@@ -3,14 +3,13 @@ package main
 import (
 	"crypto/sha256"
 //	"math/big"
-	"fmt"
 	"strconv"
 //	"encoding/hex"
 //	"encoding/binary"
-	"time"
 )
 
 // minerID int // this may honestly be completely unnecessary
+var DIFFICULTY int = 3
 
 func verify(hash []byte, d int) (bool) {
 	i := 0
@@ -23,22 +22,28 @@ func verify(hash []byte, d int) (bool) {
 	return true
 }
 
-func computeHash(str string, difficulty int) ([32]byte, int) {
-	var nonce int = 0
-	hashResult := sha256.Sum256([]byte(strconv.Itoa(nonce) + str))
+func computeHash(receiveCH chan Block, sendCH chan Block) {
+	block := <-receiveCH
+	hashResult := sha256.Sum256([]byte(strconv.Itoa(block.nonce) + block.transaction))
 
-	for true {
-		hashResult = sha256.Sum256([]byte(strconv.Itoa(nonce) + str))
-		if verify(hashResult[:], difficulty) == true {
-			break
+	for {
+		if(len(receiveCH) != 0) {
+			block = <-receiveCH
 		}
-		nonce++
+		hashResult = sha256.Sum256([]byte(strconv.Itoa(block.nonce) + block.transaction))
+		if verify(hashResult[:], DIFFICULTY) {
+			sendCH <- block
+		} else {
+			block.nonce++
+		}
 	}
-
-	return hashResult, nonce
+	// add probability to send a faulty hash
+	// adds a whole bunch of issues with this logic like double sending a verified block
 }
 
-func miner(ch chan Block) // this is the "main" of any miner
+//func miner(receiveCH chan Block, sendCH chan Block) { // this is the "main" of any miner
+//	go computeHash(receiveCH, sendCH)
+//}
 
 /*func main() {
 	i := 1

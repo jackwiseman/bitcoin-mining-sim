@@ -2,6 +2,8 @@ package main
 
 import (
 	"crypto/sha256"
+	"fmt"
+	"strconv"
 )
 
 /* Functions to implement
@@ -15,20 +17,23 @@ Other
 this holds the channels?
 */
 
-head HashPointer
+var head HashPointer
 var NUM_MINERS  int = 3
+var NUM_BLOCKS int = 10
+var NUM_MINED int = 0
 
 func appendBlock(block Block) {
 	if(head.pointer != nil) {
-		block.hashPrevBlock.pointer = head
+		block.hashPrevBlock.pointer = head.pointer
 	}
 	head.pointer = &block
 	head.hash = sha256.Sum256([]byte(block.transaction))
 }
 
 func broadcastBlock(unsolvedCH chan Block, unsolved Block) {
-	for i = 0; i < NUM_MINERS; i++ {
-		candidateCH <- unsolved
+	fmt.Println("Sending out block " + strconv.Itoa(NUM_MINED + 1) + "...")
+	for i := 0; i < NUM_MINERS; i++ {
+		unsolvedCH <- unsolved
 	}
 }
 
@@ -36,16 +41,23 @@ func main() {
 	unsolvedCH := make(chan Block)
 	candidateCH := make(chan Block)
 
-	for i = 0; i < NUM_MINERS; i++ {
-		go miner(unsolvedCH, candidateCH)
+	for i := 0; i < NUM_MINERS; i++ {
+		go computeHash(unsolvedCH, candidateCH)
 	}
+	
+	b := NewBlock()
+	broadcastBlock(unsolvedCH, b)
 
-	broadcastBlock(unsolvedCH, newBlock())
-
-	for {
+	for NUM_MINED < NUM_BLOCKS {
 		block := <-candidateCH // both should prob be named better
 		// if verify(block) { }
+		fmt.Println("Got a potential block!")
+		fmt.Println(strconv.Itoa(len(candidateCH)))
+
 		appendBlock(block)
-		broadcastBlock(unsolvedCH, newBlock()) // this is sending a pointer to a block
+		NUM_MINED++
+		b = NewBlock()
+		fmt.Println(NUM_MINED < NUM_BLOCKS)
+		broadcastBlock(unsolvedCH, b) // this is sending a pointer to a block
 	}
 }

@@ -5,7 +5,6 @@ import (
 	"math/rand"
 	"strconv"
 	"time"
-	"fmt"
 )
 
 /* Functions to implement
@@ -25,13 +24,11 @@ type HashPointer struct {
 
 // Returns a new block with a random transaction as its data,
 // and nothing set as its header
-func NewBlock() *Block { // basically SetNull() in block.cpp
+// TODO: because this sends the transaction as well, anyone can edit the transaction before sending back, perhaps the logger verifies based on this already set transaction?
+func NewBlock() Block { // basically SetNull() in block.cpp
 	rand.Seed(time.Now().UnixNano())
 	sender := strconv.Itoa(rand.Intn(999999999))
 	recipient := strconv.Itoa(rand.Intn(999999999))
 
-	block := Block{HashPointer{}, sender + " -> " + recipient, 0}
-	fmt.Println("Generated new block: " + block.transaction)
-
-	return &block
+	return Block{HashPointer{}, sender + " -> " + recipient, 0}
 }
