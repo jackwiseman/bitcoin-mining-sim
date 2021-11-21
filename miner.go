@@ -10,6 +10,7 @@ import (
 
 // minerID int // this may honestly be completely unnecessary
 var DIFFICULTY int = 3
+var waitingForNewBlock = false
 
 func verify(hash []byte, d int) (bool) {
 	i := 0
@@ -27,12 +28,14 @@ func computeHash(receiveCH chan Block, sendCH chan Block) {
 	hashResult := sha256.Sum256([]byte(strconv.Itoa(block.nonce) + block.transaction))
 
 	for {
-		if(len(receiveCH) != 0) {
+		if waitingForNewBlock || len(receiveCH) != 0 {
 			block = <-receiveCH
+			waitingForNewBlock = false
 		}
 		hashResult = sha256.Sum256([]byte(strconv.Itoa(block.nonce) + block.transaction))
-		if verify(hashResult[:], DIFFICULTY) {
+		if verify(hashResult[:], DIFFICULTY) && len(receiveCH) == 0 {
 			sendCH <- block
+			waitingForNewBlock = true
 		} else {
 			block.nonce++
 		}

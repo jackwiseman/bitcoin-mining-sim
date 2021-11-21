@@ -31,15 +31,23 @@ func appendBlock(block Block) {
 }
 
 func broadcastBlock(unsolvedCH chan Block, unsolved Block) {
-	fmt.Println("Sending out block " + strconv.Itoa(NUM_MINED + 1) + "...")
+	fmt.Println("Sending out block " + strconv.Itoa(NUM_MINED + 1) + " with transaction " + unsolved.transaction)
 	for i := 0; i < NUM_MINERS; i++ {
 		unsolvedCH <- unsolved
 	}
 }
 
+func printChain() {
+	i := head
+	for i.pointer != nil {
+		fmt.Printf("%d : %s\n", i.pointer.nonce, i.pointer.transaction)
+		i = i.pointer.hashPrevBlock
+	}
+}
+
 func main() {
-	unsolvedCH := make(chan Block)
-	candidateCH := make(chan Block)
+	unsolvedCH := make(chan Block, NUM_MINERS)
+	candidateCH := make(chan Block, NUM_MINERS)
 
 	for i := 0; i < NUM_MINERS; i++ {
 		go computeHash(unsolvedCH, candidateCH)
@@ -52,12 +60,13 @@ func main() {
 		block := <-candidateCH // both should prob be named better
 		// if verify(block) { }
 		fmt.Println("Got a potential block!")
-		fmt.Println(strconv.Itoa(len(candidateCH)))
-
+//		fmt.Println(len(candidateCH))
+		fmt.Println("Recieved: " + block.transaction)
 		appendBlock(block)
 		NUM_MINED++
 		b = NewBlock()
 		fmt.Println(NUM_MINED < NUM_BLOCKS)
 		broadcastBlock(unsolvedCH, b) // this is sending a pointer to a block
 	}
+	printChain()
 }
