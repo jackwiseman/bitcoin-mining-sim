@@ -5,23 +5,26 @@ import (
 	"strconv"
 	"time"
 	"math/rand"
+	"encoding/hex"
+	"strings"
 )
 
-
-// if  d = 4
-// (d / 2 - 1)
-// [12 34 56 78]
-// i[1]
-
 func verify(hash []byte, d int) (bool) {
-	for i :=0; i < ((d + 1) / 2); i++ {
-		if (i % 2 == 0) && hash[i] != 0 {
+	if d % 2 == 0 {
+		for i :=0; i < (d / 2); i++ {
+			if hash[i] != 0 {
 				return false
-		} else {
-			if(i + 1 >= ((d + 1) / 2) && hash[i] > 15) {
-				return false
+			}
+		}
+	} else {
+		for i :=0; i < ((d + 1) / 2); i++ {
+			if ((i + 1) >= ((d + 1) / 2)) {
+				if hash[i] > 15 {
+					return false
+				}
+				return true
 			} else {
-				if(hash[i] != 0) {
+				if hash[i] != 0 {
 					return false
 				}
 			}
@@ -30,29 +33,28 @@ func verify(hash []byte, d int) (bool) {
 	return true
 }
 
-// func verify(hash []byte, d int) (bool) {
-// 	i := 0
-// 	for i < d {
-// 		if (d % 2 == 1 && i + 1 >= d) {
-// 			if int(hash[i]) > 15 {
-// 				return false
-// 			} else {
-// 				return true
-// 			}
-// 		}
-// 		if int(hash[i]) != 0 {
-// 			return false
-// 		}
-// 		i++
-// 	}
-// 	return true
-// }
+func verifySLOW(hash []byte, d int) (bool) {
+	str := hex.EncodeToString(hash)
+	res := strings.Split(str, "")
+	for i := 0; i < d; i++ {
+		if res[i] != "0" { return false }
+	}
+	return true
+}
+
+func doubleSHA256(data []byte) []byte {
+	h := sha256.New()
+	h.Write(data)
+	h2 := sha256.New()
+	h2.Write(h.Sum(nil))
+	return h2.Sum(nil)
+}
 
 
 func computeHash(block Block, sendCH chan Block, quit chan int, difficulty int, id int) {
 	rand.Seed(time.Now().UnixNano())
 	block.nonce = rand.Intn(99999999999999999) // this will obv have to be adjusted
-	hashResult := sha256.Sum256([]byte(strconv.Itoa(block.nonce) + block.transaction))
+	hash := doubleSHA256([]byte(strconv.Itoa(block.nonce) + block.transaction))
 	startTime := time.Now()
 
 	for {
@@ -60,9 +62,9 @@ func computeHash(block Block, sendCH chan Block, quit chan int, difficulty int, 
 		case <-quit:
 			return
 		default:
-			hashResult = sha256.Sum256([]byte(strconv.Itoa(block.nonce) + block.transaction))
+			hash = doubleSHA256([]byte(strconv.Itoa(block.nonce) + block.transaction))
 
-			if verify(hashResult[:], difficulty) {
+			if verify(hash, difficulty) {
 				endTime := time.Now()
 				block.duration = endTime.Sub(startTime)
 				block.minerID = id
@@ -82,11 +84,5 @@ func miner(receiveCH chan Block, sendCH chan Block, quit chan int, difficulty in
 
 	for {
 		computeHash(<-receiveCH, sendCH, quit, difficulty, id)
-/*		select {
-			case block := <-receiveCH: 
-				computeHash(block, sendCH, quit, difficulty)
-			default:
-				continue
-			}*/
 	}
 }

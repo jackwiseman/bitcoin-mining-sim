@@ -20,9 +20,9 @@ this holds the channels?
 
 var head HashPointer
 var NUM_MINERS  int = 100
-var NUM_BLOCKS int = 1
+var NUM_BLOCKS int = 100
 var NUM_MINED int = 0
-var DIFFICULTY int = 8
+var DIFFICULTY int = 5
 var DUPLICATES int = 0
 
 func existsInChain(block Block) (bool) {
@@ -36,7 +36,6 @@ func existsInChain(block Block) (bool) {
 		i = i.pointer.hashPrevBlock
 	}
 	return false
-
 }
 
 func appendBlock(block Block) {
@@ -49,7 +48,7 @@ func appendBlock(block Block) {
 
 func broadcastBlock(unsolvedCH chan Block) {
 	block := NewBlock()
-	fmt.Println("Sending out block " + strconv.Itoa(NUM_MINED + 1) + " with transaction " + block.transaction)
+//	fmt.Println("Sending out block " + strconv.Itoa(NUM_MINED + 1) + " with transaction " + block.transaction)
 	for i := 0; i < NUM_MINERS; i++ {
 		unsolvedCH <- block
 	}
@@ -67,6 +66,7 @@ func printChain() {
 	for i.pointer != nil {
 //	fmt.Printf("miner#%d -- (%d%s) (Time elapsed: %s)\n", i.pointer.minerID, i.pointer.nonce, i.pointer.transaction, i.pointer.duration)
 	fmt.Printf("%d%s\n", i.pointer.nonce, i.pointer.transaction)
+	fmt.Printf("%x (%s)\n", doubleSHA256([]byte(strconv.Itoa(i.pointer.nonce) + i.pointer.transaction)), i.pointer.duration)
 		i = i.pointer.hashPrevBlock
 //		totalTime = totalTime.Add(i.pointer.duration)
 	}
@@ -90,11 +90,12 @@ func main() {
 	for NUM_MINED < NUM_BLOCKS {
 		block := <-candidateCH // both should prob be named better
 		// if verify(block) { }
-		fmt.Println("Recieved: " + block.transaction + " from " + strconv.Itoa(block.minerID))
+		//fmt.Println("Recieved: " + block.transaction + " from " + strconv.Itoa(block.minerID))
 		if(existsInChain(block)) {
-			fmt.Println("[Warning] Duplicate found")
+			fmt.Println("-- Duplicate found")
 		}
-		fmt.Printf("\n")
+		fmt.Printf("%x (%s)\n", doubleSHA256([]byte(strconv.Itoa(block.nonce) + block.transaction)), block.duration)
+		//fmt.Printf("\n")
 
 		appendBlock(block)
 		NUM_MINED++
