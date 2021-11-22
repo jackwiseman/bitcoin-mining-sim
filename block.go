@@ -15,6 +15,8 @@ type Block struct {
 	hashPrevBlock HashPointer// this may need to be a pointer?
 	transaction string
 	nonce int// probably has to account for larger nums
+	duration string
+	minerID int
 }
 
 type HashPointer struct {
@@ -29,6 +31,6 @@ func NewBlock() Block { // basically SetNull() in block.cpp
 	rand.Seed(time.Now().UnixNano())
 	sender := strconv.Itoa(rand.Intn(999999999))
 	recipient := strconv.Itoa(rand.Intn(999999999))
-
-	return Block{HashPointer{}, sender + " -> " + recipient, 0}
+	b := Block{HashPointer{}, sender + " -> " + recipient, 0, "", 0}
+	return b
 }

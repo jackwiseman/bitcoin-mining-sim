@@ -2,15 +2,12 @@ package main
 
 import (
 	"crypto/sha256"
-//	"math/big"
 	"strconv"
-//	"encoding/hex"
-//	"encoding/binary"
+	"time"
+	"math/rand"
 )
 
-// minerID int // this may honestly be completely unnecessary
-var DIFFICULTY int = 3
-var waitingForNewBlock = false
+var MINER_ID int
 
 func verify(hash []byte, d int) (bool) {
 	i := 0
@@ -23,45 +20,73 @@ func verify(hash []byte, d int) (bool) {
 	return true
 }
 
-func computeHash(receiveCH chan Block, sendCH chan Block) {
-	block := <-receiveCH
+func miner(receiveCH chan Block, sendCH chan Block, difficulty int, id int) {
+	block := receiveCH
+	rand.Seed(time.Now().UnixNano())
+	block.nonce = rand.Intn(99999999999999) // this will obv have to be adjusted
 	hashResult := sha256.Sum256([]byte(strconv.Itoa(block.nonce) + block.transaction))
+	startTime := time.Now()
 
 	for {
-		if waitingForNewBlock || len(receiveCH) != 0 {
-			block = <-receiveCH
-			waitingForNewBlock = false
-		}
-		hashResult = sha256.Sum256([]byte(strconv.Itoa(block.nonce) + block.transaction))
-		if verify(hashResult[:], DIFFICULTY) && len(receiveCH) == 0 {
-			sendCH <- block
-			waitingForNewBlock = true
-		} else {
+		select {
+		case block = <-receiveCH: // if new block received
+			block.nonce = rand.Intn(99999999999999) // this will obv have to be adjusted
+			startTime = time.Now()
+		default:
+			hashResult = sha256.Sum256([]byte(strconv.Itoa(block.nonce) + block.transaction))
+
+			if verify(hashResult[:], difficulty) {
+				endTime := time.Now()
+				block.duration = endTime.Sub(startTime).String()
+				block.minerID = id
+
+				sendCH <- block
+			}
 			block.nonce++
 		}
 	}
 	// add probability to send a faulty hash
-	// adds a whole bunch of issues with this logic like double sending a verified block
 }
 
-//func miner(receiveCH chan Block, sendCH chan Block) { // this is the "main" of any miner
-//	go computeHash(receiveCH, sendCH)
-//}
+/*func computeHash(block Block, sendCH chan Block, quit chan int, difficulty int) {
+	rand.Seed(time.Now().UnixNano())
+	block.nonce = rand.Intn(99999999999999) // this will obv have to be adjusted
+	hashResult := sha256.Sum256([]byte(strconv.Itoa(block.nonce) + block.transaction))
+	startTime := time.Now()
 
-/*func main() {
-	i := 1
-	for i < 5 {
-		startTime := time.Now()
-		hash, nonce := computeHash("Jack Wiseman", i)
-		endTime := time.Now()
+	for {
+		select {
+		case <-quit:
+			//fmt.Println(quit_value)
+			return
+		default:
+			hashResult = sha256.Sum256([]byte(strconv.Itoa(block.nonce) + block.transaction))
 
-		fmt.Println(nonce)
-		fmt.Println(hash[:])
-		fmt.Println(endTime.Sub(startTime))
-		fmt.Printf("Difficulty: %d\n\n", i)
+			if verify(hashResult[:], difficulty) {
+				endTime := time.Now()
+				block.duration = endTime.Sub(startTime).String()
+				block.minerID = MINER_ID
 
-		i++
+				sendCH <- block
+				return
+			} else {
+				block.nonce++
+			}
+		}
 	}
-}*/
+	// add probability to send a faulty hash
+}
 
+func miner(receiveCH chan Block, sendCH chan Block, quit chan int, difficulty int, id int) {
+	MINER_ID = id
 
+	for {
+		select {
+			case block := <-receiveCH: 
+				go computeHash(block, sendCH, quit, difficulty)
+			default:
+				continue
+			}
+	}
+}
+*/

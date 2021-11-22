@@ -18,9 +18,10 @@ this holds the channels?
 */
 
 var head HashPointer
-var NUM_MINERS  int = 3
-var NUM_BLOCKS int = 10
+var NUM_MINERS  int = 59
+var NUM_BLOCKS int = 20
 var NUM_MINED int = 0
+var DIFFICULTY int = 1
 
 func appendBlock(block Block) {
 	if(head.pointer != nil) {
@@ -30,17 +31,24 @@ func appendBlock(block Block) {
 	head.hash = sha256.Sum256([]byte(block.transaction))
 }
 
-func broadcastBlock(unsolvedCH chan Block, unsolved Block) {
-	fmt.Println("Sending out block " + strconv.Itoa(NUM_MINED + 1) + " with transaction " + unsolved.transaction)
+func broadcastBlock(unsolvedCH chan Block) {
+	block := NewBlock()
+	fmt.Println("Sending out block " + strconv.Itoa(NUM_MINED + 1) + " with transaction " + block.transaction)
 	for i := 0; i < NUM_MINERS; i++ {
-		unsolvedCH <- unsolved
+		unsolvedCH <- block
+	}
+}
+
+func broadcastSolved(quit chan int) {
+	for i := 0; i < NUM_MINERS; i++ {
+		quit <- 1
 	}
 }
 
 func printChain() {
 	i := head
 	for i.pointer != nil {
-		fmt.Printf("%d : %s\n", i.pointer.nonce, i.pointer.transaction)
+		fmt.Printf("miner#%d -- %d : %s (Time elapsed: %s)\n", i.pointer.minerID, i.pointer.nonce, i.pointer.transaction, i.pointer.duration)
 		i = i.pointer.hashPrevBlock
 	}
 }
@@ -48,25 +56,25 @@ func printChain() {
 func main() {
 	unsolvedCH := make(chan Block, NUM_MINERS)
 	candidateCH := make(chan Block, NUM_MINERS)
+	quitCH := make(chan int, NUM_MINERS)
 
 	for i := 0; i < NUM_MINERS; i++ {
-		go computeHash(unsolvedCH, candidateCH)
+		go miner(unsolvedCH, candidateCH, quitCH, DIFFICULTY, i)
 	}
-	
-	b := NewBlock()
-	broadcastBlock(unsolvedCH, b)
+	// send first block
+	broadcastBlock(unsolvedCH)
 
 	for NUM_MINED < NUM_BLOCKS {
 		block := <-candidateCH // both should prob be named better
 		// if verify(block) { }
-		fmt.Println("Got a potential block!")
-//		fmt.Println(len(candidateCH))
-		fmt.Println("Recieved: " + block.transaction)
+		fmt.Println("Recieved: " + block.transaction + " from " + strconv.Itoa(block.minerID))
+
 		appendBlock(block)
 		NUM_MINED++
-		b = NewBlock()
 		fmt.Println(NUM_MINED < NUM_BLOCKS)
-		broadcastBlock(unsolvedCH, b) // this is sending a pointer to a block
+		broadcastSolved(quitCH)
+		broadcastBlock(unsolvedCH)
+		fmt.Println(len(quitCH))
 	}
 	printChain()
 }
