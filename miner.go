@@ -1,12 +1,8 @@
 package main
 
 import (
-	"crypto/sha256"
-	"strconv"
 	"time"
 	"math/rand"
-	"encoding/hex"
-	"strings"
 )
 
 func verify(hash []byte, d int) (bool) {
@@ -33,56 +29,42 @@ func verify(hash []byte, d int) (bool) {
 	return true
 }
 
-func verifySLOW(hash []byte, d int) (bool) {
-	str := hex.EncodeToString(hash)
-	res := strings.Split(str, "")
-	for i := 0; i < d; i++ {
-		if res[i] != "0" { return false }
-	}
-	return true
-}
 
-func doubleSHA256(data []byte) []byte {
-	h := sha256.New()
-	h.Write(data)
-	h2 := sha256.New()
-	h2.Write(h.Sum(nil))
-	return h2.Sum(nil)
-}
-
-
-func computeHash(block Block, sendCH chan Block, quit chan int, difficulty int, id int) {
+func solvePuzzle(block Block, sendCH chan struct{Block; string}, quit chan int, id int) {
 	rand.Seed(time.Now().UnixNano())
-	block.nonce = rand.Intn(99999999999999999) // this will obv have to be adjusted
-	hash := doubleSHA256([]byte(strconv.Itoa(block.nonce) + block.transaction))
+	block.Header.Nonce = rand.Uint64()
+
+	hashInput := UInt64ToBytes(block.Header.Nonce)
+	blockAsBytes := BlockToBytes(block)
+	hashInput = append(hashInput, blockAsBytes...)
+
+	hash := hashBlock(block)
 	startTime := time.Now()
+
 
 	for {
 		select {
 		case <-quit:
 			return
 		default:
-			hash = doubleSHA256([]byte(strconv.Itoa(block.nonce) + block.transaction))
+			hash = hashBlock(block)
 
-			if verify(hash, difficulty) {
+			if verify(hash, block.Header.Bits) {
 				endTime := time.Now()
-				block.duration = endTime.Sub(startTime)
-				block.minerID = id
-
-				sendCH <- block
+				sendCH <- struct{Block; string}{block, endTime.Sub(startTime).String()}
 				<-quit
 				return
 			} else {
-				block.nonce++
+				block.Header.Nonce++
 			}
 		}
 	}
 	// add probability to send a faulty hash
 }
 
-func miner(receiveCH chan Block, sendCH chan Block, quit chan int, difficulty int, id int) {
+func miner(receiveCH chan Block, sendCH chan struct{Block; string}, quit chan int, id int) {
 
 	for {
-		computeHash(<-receiveCH, sendCH, quit, difficulty, id)
+		solvePuzzle(<-receiveCH, sendCH, quit, id)
 	}
 }
