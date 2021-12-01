@@ -6,7 +6,8 @@ import (
 	"os"
 	"strconv"
 	"time"
-	"math/rand"
+	"runtime"
+//	"math/rand"
 )
 
 var head HashPointer
@@ -77,6 +78,9 @@ func checkSolution(block Block) int {
 
 // ./main [# blocks] [# miners] [difficulty] [probability] [show info? t/f]
 func main() {
+
+	runtime.GOMAXPROCS(10)
+
 	// input handling
 	if len(os.Args) != 6 {
 		fmt.Println("Usage: ./main [# blocks] [# miners] [difficulty] [succss probability] [print info t/f")
